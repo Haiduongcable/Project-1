@@ -1,0 +1,6 @@
+checkpoint: /hdd/DATA/TPA/license_plate/recognition/models/best_model_0928.h5
+
+socket_port: 45680
+ip: '192.168.0.104'
+web_service:  
+  port: 8587

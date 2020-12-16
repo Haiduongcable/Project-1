@@ -1,0 +1,10 @@
+camera:
+  url: 'rtsp://admin:ars@1234@192.168.0.111'
+  usb: False
+yolo_model:
+  weight: /home/duongnh/Documents/TPA/checkpoint/yolov3-tiny_3l_last.weights
+  config: /home/duongnh/Documents/TPA/checkpoint/yolov3-tiny_3l.cfg
+  meta: /home/duongnh/Documents/TPA/checkpoint/tpa.data
+server:
+  ip: '192.168.0.104'
+  socket_port: 45680
