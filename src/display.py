@@ -27,12 +27,14 @@ from recognition import ClassifyService
 import requests
 from datetime import datetime
 from tesseract_recognition import TesseractRecognition
-
+from utils import querry_t
+from threading import Thread
+from mysql_database import MySQL_Database
 
 class Display:
     def __init__(self):
         self.webcam = self.videocapture()
-        self.ip_url = "http://192.168.43.23:8080/shot.jpg"
+        self.ip_url = "http://192.168.43.67:8080/shot.jpg"
         self.height_window = 680
         self.width_window = 1540
         self.window = self.create_window()
@@ -44,7 +46,7 @@ class Display:
         self.yolomodel = Yolo_opencv()
         self.segmentation_image = None
         self.segmentation = SegmentCharacter()
-        cfg = anyconfig.load("/home/duongnh/Documents/Project1/src/config_Cnn.yaml")
+        cfg = anyconfig.load("config_Cnn.yaml")
         cfg = munch.munchify(cfg)
         self.recognition = ClassifyService(cfg)
         self.bboxes_yolo = None
@@ -54,6 +56,12 @@ class Display:
         #Option
         self.type_camera = "IP" #default "IP"
         self.modelRecognition = "Segmentation Recognition" #default "Segmentation Recognition"
+        #Database
+        self.database = MySQL_Database()
+        
+        # Label Tkinter 
+        self.label_lp = None
+
         
     def tesseract_recognition(self, image, bboxes):
         image_recog = image.copy()
@@ -128,13 +136,9 @@ class Display:
         self.frame_save = frame
         input_yolo = frame.copy()
         self.image_result_yolo, self.bboxes_yolo = self.yolomodel.detect(input_yolo)
-        if self.modelRecognition == "Tesseract":
-            result_recognition_image , self.lp_recognition  = self.tesseract_recognition(frame, self.bboxes_yolo)
-            #print(self.lp_recognition)
-        else:
-            result_recognition_image , self.lp_recognition = self.segmentation_recognition(frame, self.bboxes_yolo)
-        result_recognition_image = cv2.cvtColor(result_recognition_image, cv2.COLOR_BGR2RGB)
-        self.photo = PIL.ImageTk.PhotoImage(image=PIL.Image.fromarray(result_recognition_image))
+        
+        image_imshow = cv2.cvtColor(self.image_result_yolo, cv2.COLOR_BGR2RGB)
+        self.photo = PIL.ImageTk.PhotoImage(image=PIL.Image.fromarray(image_imshow))
         self.canvas.create_image(0,0, image = self.photo, anchor=tk.NW)
         self.window.after(30,self.update_frame)
         self.count +=1
@@ -156,13 +160,15 @@ class Display:
         canvas.place(relx=0.2, rely=0.4, anchor="c")
         return canvas
     
-    def imshow_result(self):
-        pass
-    
-    def start_window():
-        pass
+        
+    def get_lp_recognition(self):
+        if self.modelRecognition == "Tesseract":
+            result_recognition_image , self.lp_recognition  = self.tesseract_recognition(self.frame_save, self.bboxes_yolo)
+            #print(self.lp_recognition)
+        else:
+            result_recognition_image , self.lp_recognition = self.segmentation_recognition(self.frame_save, self.bboxes_yolo)
             
-    def save_result(self):
+    def Result_VehicleIN(self):
         print("Tap button")
         # Imshow saved
         myFont = font.Font(family="Helvetica",size=36,weight="bold")
@@ -170,8 +176,9 @@ class Display:
         label_saved = Label(textvariable=var , width = 10, height = 3, font =  myFont)
         var.set("Saved")
         label_saved.place(relx = 0.8, rely = 0.03, anchor = "c")
-        
-        #Imshow label with saved image
+        '''
+        Imshow label with saved image
+        '''
         image_imshow = cv2.resize(self.frame_save,dsize=None, fx = 0.5, fy = 0.5)
         image_imshow = cv2.cvtColor(image_imshow, cv2.COLOR_BGR2RGB)
         image_imshow = Image.fromarray(image_imshow)
@@ -179,16 +186,10 @@ class Display:
         label_image = Label(image = image_imshow)
         label_image.image = image_imshow
         label_image.place(relx = 0.8, rely = 0.3, anchor = "c")
+        
         #get date time
         now = datetime.now()
         datetime_str = now.strftime("%d/%m/%y %H:%M")
-        #Imshow datetime capture image
-        myFont = font.Font(family="Helvetica",size=25,weight="bold")
-        var_datetime = StringVar()
-        label_datetime = Label(self.window, textvariable=var_datetime , width = 15, height = 3, font =  myFont)
-        var_datetime.set(datetime_str)
-        label_datetime.place(relx = 0.8, rely = 0.7, anchor = "c")
-        
         
         # Imwrite
         cv2.imwrite("/home/duongnh/Documents/Project1/Database/save_frame/"\
@@ -201,45 +202,125 @@ class Display:
             file = open("/home/duongnh/Documents/Project1/Database/save_lpname/" + str(self.count) + "_image.txt", "w")
             
             string_imshow = ""
+            
+            self.get_lp_recognition()
+            
             for lp_name in self.lp_recognition:
-                file.write("Time: " + datetime_str + " Result: " + lp_name +  +  "\n")
-                string_imshow += lp_name + " " + "\n"
-            file.close()
+                print(type(datetime_str), type(lp_name))
+                if datetime_str != "" and lp_name != None:
+                    file.write("Time: " + datetime_str + " Result: " + lp_name +  "\n")
+                    string_imshow += lp_name + " " + "\n"
+                # datetime_in = querry_t(lp_name, datetime_str)
+                file.close()
+                break
+            
+            #Insert database
+            self.database.insert_Plate_IN(self.lp_recognition[0], datetime_str)
+            string_imshow += "\n Time in: " + datetime_str
             
             #lable imshow lpname
-            myFont = font.Font(family="Helvetica",size=25,weight="bold")
+            myFont = font.Font(family="Helvetica",size=18,weight="bold")
             var_lp = StringVar()
-            label_lpname = Label(self.window, textvariable=var_lp , width = 15, height = 3, font =  myFont)
+            self.label_lp = Label(self.window, textvariable=var_lp , width = 40, height = 12, font =  myFont)
             var_lp.set(string_imshow)
-            label_lpname.place(relx = 0.8, rely = 0.6, anchor = "c")
-            #label imshow error
-            myFont = font.Font(family="Helvetica",size=36,weight="bold")
-            var_error = StringVar()
-            label_error = Label(self.window, textvariable=var_error , width = 25, height = 3, font =  myFont)
-            var_error.set("")
-            label_error.place(relx = 0.8, rely = 0.95, anchor = "c")
+            self.label_lp.place(relx = 0.8, rely = 0.8, anchor = "c")
+ 
         else:
-            #lable imshow lpname
-            myFont = font.Font(family="Helvetica",size=25,weight="bold")
-            var_lp = StringVar()
-            label_lpname = Label(self.window, textvariable=var_lp , width = 15, height = 3, font =  myFont)
-            var_lp.set("")
-            label_lpname.place(relx = 0.8, rely = 0.6, anchor = "c")
-            
-            #label imshow error
+            myFont = font.Font(family="Helvetica",size=18,weight="bold")
             var_error = StringVar()
-            label_error = Label(self.window, textvariable=var_error , width = 25, height = 3, font =  myFont)
+            self.label_lp = Label(self.window, textvariable=var_error , width = 40, height = 12, font =  myFont)
             var_error.set("No license plate in image")
-            label_error.place(relx = 0.8, rely = 0.95, anchor = "c")
+            self.label_lp.place(relx = 0.8, rely = 0.8, anchor = "c")
             
-
+            
+    def Result_VehicleOUT(self):
+        print("Tap button")
+        # Imshow saved
+        myFont = font.Font(family="Helvetica",size=36,weight="bold")
+        var = StringVar()
+        label_saved = Label(textvariable=var , width = 10, height = 3, font =  myFont)
+        var.set("Saved")
+        label_saved.place(relx = 0.8, rely = 0.03, anchor = "c")
+        '''
+        Imshow label with saved image
+        '''
+        image_imshow = cv2.resize(self.frame_save,dsize=None, fx = 0.5, fy = 0.5)
+        image_imshow = cv2.cvtColor(image_imshow, cv2.COLOR_BGR2RGB)
+        image_imshow = Image.fromarray(image_imshow)
+        image_imshow = ImageTk.PhotoImage(image_imshow)
+        label_image = Label(image = image_imshow)
+        label_image.image = image_imshow
+        label_image.place(relx = 0.8, rely = 0.3, anchor = "c")
+        
+        #get date time
+        now = datetime.now()
+        datetime_str = now.strftime("%d/%m/%y %H:%M")
+        
+        # Imwrite
+        cv2.imwrite("/home/duongnh/Documents/Project1/Database/save_frame/"\
+                        + str(self.count) + '_image.jpg', self.frame_save)
+        
+        if (len(self.bboxes_yolo) != 0):
+            cv2.imwrite("/home/duongnh/Documents/Project1/Database/save_result/"\
+                                 + str(self.count) + '_image.jpg',self.image_result_yolo)
+            
+            file = open("/home/duongnh/Documents/Project1/Database/save_lpname/" + str(self.count) + "_image.txt", "w")
+            
+            string_imshow = ""
+            
+            self.get_lp_recognition()
+            
+            for lp_name in self.lp_recognition:
+                print(type(datetime_str), type(lp_name))
+                if datetime_str != "" and lp_name != None:
+                    file.write("Time: " + datetime_str + " Result: " + lp_name +  "\n")
+                    string_imshow += lp_name + " " + "\n"
+                # datetime_in = querry_t(lp_name, datetime_str)
+                file.close()
+                break
+            
+            #querry database
+            result = self.database.querry_Plate_OUT(self.lp_recognition[0], datetime_str)
+            if (result == None):
+                string_imshow += "\n Time out: " + datetime_str + "\n"
+                string_imshow += "NOT FOUND LICENSE PLATE IN DATABASE"
+            else:
+                string_imshow += "\n Time out: " + datetime_str + "\n"
+                string_imshow += "FOUND LICENSE PLATE \n TIME IN: " + str(result)
+            
+            #lable imshow lpname
+            myFont = font.Font(family="Helvetica",size=18,weight="bold")
+            var_lp = StringVar()
+            self.label_lp = Label(self.window, textvariable=var_lp , width = 40, height = 12, font =  myFont)
+            var_lp.set(string_imshow)
+            self.label_lp.place(relx = 0.8, rely = 0.8, anchor = "c")
+        else:   
+            myFont = font.Font(family="Helvetica",size=18,weight="bold")
+            var_error = StringVar()
+            self.label_lp = Label(self.window, textvariable=var_error , width = 40, height = 12, font =  myFont)
+            var_error.set("No license plate in image")
+            self.label_lp.place(relx = 0.8, rely = 0.8, anchor = "c")
+            
+    def thread_VehicleIN(self):
+        thread = Thread(target = self.Result_VehicleIN)
+        thread.start()
+        
+    def thread_VehicleOUT(self):
+        thread = Thread(target = self.Result_VehicleOUT)
+        thread.start()
+    
     def create_button(self):
-        button = Button(self.window,text = "Capture and Save",\
-                command=self.save_result, height = 7, width = 14,\
+        button_in = Button(self.window,text = "Vehicle IN",\
+                command=self.thread_VehicleIN, height = 7, width = 14,\
                     activebackground = "cyan")
+        button_out = Button(self.window, text = "Vehicle OUT",\
+            command = self.thread_VehicleOUT, height = 7, width = 14,\
+                    activebackground = "cyan")
+        
         #button.grid(row=0, column=0)
-        button.place(relx=0.5, rely=0.9, anchor="c")
+        button_in.place(relx=0.4, rely=0.9, anchor="c")
         #button.pack()
+        button_out.place(relx=0.6, rely=0.9, anchor="c")
     
     
     def main(self):

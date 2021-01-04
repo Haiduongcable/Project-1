@@ -13,10 +13,12 @@ from shapely.geometry.polygon import Polygon
 class SegmentCharacter:
     def __init__(self):
         self.output_character_size = (12,28)
-        self.width_fixed_size = 200
+        self.width_fixed_size = 600
 
     def segment(self, lp_image):
+        print("Shape image",np.shape(lp_image))
         # Define type of license plate
+        
         if lp_image.shape[0]/lp_image.shape[1] <= 0.6:
             type_lp = 'CarLong'
         else:
@@ -24,6 +26,7 @@ class SegmentCharacter:
         
         #resize to format license plate
         lp_image = imutils.resize(lp_image, width = self.width_fixed_size)
+        imagedraw = lp_image.copy()
 
         #threshold image
         gray_img = cv2.cvtColor(lp_image, cv2.COLOR_BGR2GRAY)
@@ -76,10 +79,15 @@ class SegmentCharacter:
         for bbox in list_bbox_character:
             list_extendbbox.append(padding_rect(bbox))
         #Sorted bbox right to left, top to down
+        print("List extend bbox: ",list_extendbbox)
+        for bbox in list_extendbbox:
+            cv2.rectangle(imagedraw, (bbox[0][0],bbox[0][1]), (bbox[2][0],bbox[2][1]), (255, 0, 0), 2)
+        cv2.imwrite('ututut.png', imagedraw)
         if len(list_extendbbox) >= 3 and len(list_extendbbox) <= 10:
             list_sorted = sort_bbox(type_lp, list_extendbbox)
             # print("Checking: ",len(list_sorted))
             return list_sorted
+        
         elif len(list_extendbbox) < 3:
             return list_extendbbox
         else:

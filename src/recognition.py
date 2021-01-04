@@ -30,7 +30,7 @@ def crop_image(image,list_coordinate):
         Crop character in lp image
     """
     list_character = []
-    lp_image = imutils.resize(image,width = 200)
+    lp_image = imutils.resize(image,width = 600)
     for bbox in list_coordinate:
         if bbox[0][0] == bbox[0][1] == bbox[1][0] == bbox[1][1]:
             break

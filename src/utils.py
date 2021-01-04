@@ -12,6 +12,24 @@ import imutils
 from sklearn.cluster import KMeans
 
 
+
+
+# Time: 16/12/20 09:28 Result: 64A04075
+def querry_t(string_lp, string_time):
+    dir_querry = os.listdir('/home/duongnh/Documents/Project1/Database/save_lpname')
+    datetime_str = ""
+    for filename in dir_querry:
+        file = open('/home/duongnh/Documents/Project1/Database/save_lpname/' + filename)
+        for line in file:
+            if (len(line) > 10):
+                if line.find(string_lp) != -1:
+                    end_index = line.find(string_lp) - 8
+                    datetime_str = line[6:end_index]
+                    break
+    return datetime_str
+
+    
+
 def resize_and_pad(img, size, padColor= 0):
     """
         Padding image and resize
@@ -327,3 +345,78 @@ def crop_image(image,list_coordinate):
         # warped = warped[..., None]
         list_character.append(warped)
     return list_character
+
+
+def get_contour_precedence(contour, cols):
+    tolerance_factor = 10
+    origin = cv2.boundingRect(contour)
+    return ((origin[1] // tolerance_factor) * tolerance_factor) * cols + origin[0]
+
+
+def square(img):
+    """
+    This function resize non square image to square one (height == width)
+    :param img: input image as numpy array
+    :return: numpy array
+    """
+
+    # image after making height equal to width
+    squared_image = img
+
+    # Get image height and width
+    h = img.shape[0]
+    w = img.shape[1]
+
+    # In case height superior than width
+    if h > w:
+        diff = h-w
+        if diff % 2 == 0:
+            x1 = np.zeros(shape=(h, diff//2))
+            x2 = x1
+        else:
+            x1 = np.zeros(shape=(h, diff//2))
+            x2 = np.zeros(shape=(h, (diff//2)+1))
+
+        squared_image = np.concatenate((x1, img, x2), axis=1)
+
+    # In case height inferior than width
+    if h < w:
+        diff = w-h
+        if diff % 2 == 0:
+            x1 = np.zeros(shape=(diff//2, w))
+            x2 = x1
+        else:
+            x1 = np.zeros(shape=(diff//2, w))
+            x2 = np.zeros(shape=((diff//2)+1, w))
+
+        squared_image = np.concatenate((x1, img, x2), axis=0)
+
+    return squared_image
+
+
+def sort(vector):
+    sort = True
+    while (sort == True):
+
+        sort = False
+        for i in range(len(vector) - 1):
+            x_1 = vector[i][0]
+            y_1 = vector[i][1]
+
+            for j in range(i + 1, len(vector)):
+
+                x_2 = vector[j][0]
+                y_2 = vector[j][1]
+
+                if (x_1 >= x_2 and y_2 >= y_1):
+                    tmp = vector[i]
+                    vector[i] = vector[j]
+                    vector[j] = tmp
+                    sort = True
+
+                elif (x_1 < x_2 and y_2 > y_1):
+                    tmp = vector[i]
+                    vector[i] = vector[j]
+                    vector[j] = tmp
+                    sort = True
+    return vector

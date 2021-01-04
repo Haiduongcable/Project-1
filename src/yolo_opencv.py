@@ -50,6 +50,15 @@ class Yolo_opencv:
         bboxes_nms = []
         indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.5, 0.4)
         font = cv2.FONT_HERSHEY_PLAIN
+        
+        bbox_postprecessing = []
+        if len(indexes) > 1:
+            for i in range(len(boxes)):
+                if i in indexes and boxes[i][2] == max(boxes[i]):
+                    bbox_postprecessing.append(boxes[i])
+                    boxes = bbox_postprecessing
+                    break
+        
         for i in range(len(boxes)):
             if i in indexes:
                 bboxes_nms.append(boxes[i])
